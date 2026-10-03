@@ -17,8 +17,24 @@ async function apiRequest(path, options) {
     throw error
   }
 
-  const data = await response.json()
-  if (!response.ok) throw new Error(data.message || 'The mail server could not complete your request.')
+  const responseText = await response.text()
+  let data = null
+  if (responseText.trim()) {
+    try {
+      data = JSON.parse(responseText)
+    } catch (error) {
+      if (response.ok) {
+        throw new Error(`The mail server returned an invalid response (HTTP ${response.status}).`, {
+          cause: error,
+        })
+      }
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.message || `The mail server returned HTTP ${response.status}.`)
+  }
+  if (data === null) throw new Error('The mail server returned an empty response.')
   return data
 }
 
