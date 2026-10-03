@@ -1,7 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/emails`
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
+
+async function apiRequest(path, options) {
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, options)
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        'Cannot reach the mail server. Start the backend locally, or set VITE_API_URL to your deployed backend URL ending in /api.',
+        { cause: error },
+      )
+    }
+    throw error
+  }
+
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.message || 'The mail server could not complete your request.')
+  return data
+}
 
 function Icon({ name, size = 20 }) {
   const paths = {
@@ -59,9 +78,7 @@ function App() {
 
   async function loadHistory() {
     try {
-      const response = await fetch(API_URL)
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.message || 'Could not load email history.')
+      const data = await apiRequest('/emails')
       setHistory(data.emails)
     } catch (error) {
       setNotice({ type: 'error', text: error.message })
@@ -78,12 +95,7 @@ function App() {
 
   useEffect(() => {
     let active = true
-    fetch(API_URL)
-      .then(async (response) => {
-        const data = await response.json()
-        if (!response.ok) throw new Error(data.message || 'Could not load email history.')
-        return data
-      })
+    apiRequest('/emails')
       .then((data) => {
         if (active) setHistory(data.emails)
       })
@@ -105,13 +117,11 @@ function App() {
     setSending(true)
 
     try {
-      const response = await fetch(API_URL, {
+      const data = await apiRequest('/emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject, body, recipients }),
       })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.message || 'Your email could not be sent.')
 
       setNotice({
         type: data.status === 'sent' ? 'success' : 'warning',
@@ -326,7 +336,7 @@ function App() {
             </section>
           )}
 
-          <footer className="footer"><span>Made for the messages that matter.</span><span>POSTMARK <i>✳</i> BULK MAIL</span></footer>
+          <footer className="footer"><span>Made for the messages that matter.</span><span>POSTMAIL <i>✳</i> BULK MAIL</span></footer>
         </div>
       </main>
     </div>

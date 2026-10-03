@@ -1,16 +1,12 @@
-# React + Vite
+# Postmail frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Local development
 
-Currently, two official plugins are available:
+1. In `backend`, run `npm install` and `npm run dev`.
+2. In `frontend`, run `npm install` and `npm run dev`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Vite proxies `/api` requests to `http://localhost:5000` during local development. Start the backend as well as the frontend to load email history or send messages.
 
-## React Compiler
+## Deployment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Set the frontend build environment variable `VITE_API_URL` to the deployed backend's public URL, including `/api` (for example, `https://your-backend.onrender.com/api`). Rebuild/redeploy the frontend after changing it. Set the backend's `FRONTEND_ORIGIN` to the frontend's public origin so the API permits browser requests from that site.
