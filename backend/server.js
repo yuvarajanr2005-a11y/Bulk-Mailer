@@ -1,14 +1,15 @@
 import 'dotenv/config'
+import { randomUUID } from 'node:crypto'
 import cors from 'cors'
 import express from 'express'
-import mongoose from 'mongoose'
 import nodemailer from 'nodemailer'
-import EmailCampaign from './models/EmailCampaign.js'
 
 const app = express()
 const port = Number(process.env.PORT) || 5000
 const maxRecipients = 200
+const maxHistory = 50
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const campaigns = []
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim())
@@ -56,20 +57,21 @@ function createTransporter() {
 }
 
 app.get('/api/health', (_request, response) => {
-  response.json({ status: 'ok', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' })
+  response.json({ status: 'ok' })
 })
 
-app.get('/api/emails', async (_request, response, next) => {
-  try {
-    const emails = await EmailCampaign.find()
-      .select('subject recipients status sentCount createdAt')
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .lean()
-    response.json({ emails })
-  } catch (error) {
-    next(error)
-  }
+app.get('/api/emails', (_request, response) => {
+  const emails = campaigns.slice(0, maxHistory).map(
+    ({ _id, subject, recipients, status, sentCount, createdAt }) => ({
+      _id,
+      subject,
+      recipients,
+      status,
+      sentCount,
+      createdAt,
+    }),
+  )
+  response.json({ emails })
 })
 
 app.post('/api/emails', async (request, response, next) => {
@@ -94,12 +96,16 @@ app.post('/api/emails', async (request, response, next) => {
     }
 
     const transporter = createTransporter()
-    const campaign = await EmailCampaign.create({
+    const campaign = {
+      _id: randomUUID(),
       subject: subject.trim(),
-      body,
       recipients: recipientResult.recipients,
       status: 'sending',
-    })
+      sentCount: 0,
+      createdAt: new Date(),
+    }
+    campaigns.unshift(campaign)
+    campaigns.length = Math.min(campaigns.length, maxHistory)
     let sentCount = 0
 
     for (const recipient of recipientResult.recipients) {
@@ -122,7 +128,7 @@ app.post('/api/emails', async (request, response, next) => {
       : sentCount > 0
         ? 'partial'
         : 'failed'
-    await campaign.save()
+    campaign.sentCount = sentCount
 
     const failedCount = recipientResult.recipients.length - sentCount
     const message = failedCount === 0
@@ -153,18 +159,6 @@ app.use((error, _request, response, _next) => {
   response.status(500).json({ message: 'The server could not complete your request.' })
 })
 
-async function startServer() {
-  if (!process.env.MONGODB_URI) {
-    throw new Error('MONGODB_URI is required. Add your MongoDB connection string to backend/.env.')
-  }
-
-  await mongoose.connect(process.env.MONGODB_URI)
-  app.listen(port, () => {
-    console.log(`Bulk Mail API listening on http://localhost:${port}`)
-  })
-}
-
-startServer().catch((error) => {
-  console.error('Could not start the Bulk Mail API:', error.message)
-  process.exitCode = 1
+app.listen(port, () => {
+  console.log(`Bulk Mail API listening on port ${port}`)
 })
