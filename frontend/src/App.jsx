@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL
+  || (import.meta.env.DEV ? '/api' : 'https://bulk-mailer-1-gs93.onrender.com/api')
+).replace(/\/+$/, '')
 
 async function apiRequest(path, options) {
   let response
